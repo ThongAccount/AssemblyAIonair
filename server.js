@@ -28,15 +28,16 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
         });
 
         const transcriptResponse = await axios.post(
-        'https://api.assemblyai.com/v2/transcript',
-        {
-            audio_url: uploadResponse.data.upload_url
-        },
-        {
-            headers: { authorization: ASSEMBLY_API_KEY }
-        }
-        );
-
+            'https://api.assemblyai.com/v2/transcript',
+            {
+              audio_url: uploadResponse.data.upload_url,
+              language_code: "vi" // ⬅️ Force Vietnamese
+            },
+            {
+              headers: { authorization: ASSEMBLY_API_KEY }
+            }
+          );
+          
         console.log("Transcript request sent:", transcriptResponse.data);
 
         res.json({ id: transcriptResponse.data.id });

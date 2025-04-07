@@ -13,33 +13,39 @@ const ASSEMBLY_API_KEY = process.env.ASSEMBLY_API_KEY;
 app.use(cors());
 
 app.post('/upload', upload.single('audio'), async (req, res) => {
-  try {
-    const audioData = fs.createReadStream(req.file.path);
+    try {
+        if (!req.file) {
+        console.error("No audio file uploaded");
+        return res.status(400).json({ error: "No file uploaded" });
+        }
 
-    const uploadResponse = await axios.post(
-      'https://api.assemblyai.com/v2/upload',
-      audioData,
-      {
-        headers: { authorization: ASSEMBLY_API_KEY }
-      }
-    );
+        const audioData = fs.createReadStream(req.file.path);
+        const uploadResponse = await axios({
+        method: 'post',
+        url: 'https://api.assemblyai.com/v2/upload',
+        headers: { authorization: ASSEMBLY_API_KEY },
+        data: audioData
+        });
 
-    const transcriptResponse = await axios.post(
-      'https://api.assemblyai.com/v2/transcript',
-      {
-        audio_url: uploadResponse.data.upload_url
-      },
-      {
-        headers: { authorization: ASSEMBLY_API_KEY }
-      }
-    );
+        const transcriptResponse = await axios.post(
+        'https://api.assemblyai.com/v2/transcript',
+        {
+            audio_url: uploadResponse.data.upload_url
+        },
+        {
+            headers: { authorization: ASSEMBLY_API_KEY }
+        }
+        );
 
-    res.json({ id: transcriptResponse.data.id });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+        console.log("Transcript request sent:", transcriptResponse.data);
+
+        res.json({ id: transcriptResponse.data.id });
+    } catch (error) {
+        console.error("Upload error:", error.message);
+        res.status(500).json({ error: error.message });
+    }
 });
-
+  
 app.get('/result/:id', async (req, res) => {
   try {
     const { id } = req.params;

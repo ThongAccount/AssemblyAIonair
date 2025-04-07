@@ -1,27 +1,28 @@
-const express = require('express');
-const axios = require('axios');
-const multer = require('multer');
-const fs = require('fs');
-const cors = require('cors');
+import express from 'express';
+import axios from 'axios';
+import multer from 'multer';
+import cors from 'cors';
+import fs from 'fs';
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
-
 const ASSEMBLY_API_KEY = process.env.ASSEMBLY_API_KEY;
+
+app.use(cors());
 
 app.post('/upload', upload.single('audio'), async (req, res) => {
   try {
     const audioData = fs.createReadStream(req.file.path);
 
-    const uploadResponse = await axios({
-      method: 'post',
-      url: 'https://api.assemblyai.com/v2/upload',
-      headers: { authorization: ASSEMBLY_API_KEY },
-      data: audioData
-    });
+    const uploadResponse = await axios.post(
+      'https://api.assemblyai.com/v2/upload',
+      audioData,
+      {
+        headers: { authorization: ASSEMBLY_API_KEY }
+      }
+    );
 
     const transcriptResponse = await axios.post(
       'https://api.assemblyai.com/v2/transcript',
@@ -42,9 +43,12 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
 app.get('/result/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await axios.get(`https://api.assemblyai.com/v2/transcript/${id}`, {
-      headers: { authorization: ASSEMBLY_API_KEY }
-    });
+    const result = await axios.get(
+      `https://api.assemblyai.com/v2/transcript/${id}`,
+      {
+        headers: { authorization: ASSEMBLY_API_KEY }
+      }
+    );
     res.json(result.data);
   } catch (error) {
     res.status(500).json({ error: error.message });

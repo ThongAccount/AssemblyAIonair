@@ -1,67 +1,73 @@
-import express from 'express';
-import axios from 'axios';
-import multer from 'multer';
-import cors from 'cors';
-import fs from 'fs';
+import express from "express";
+import multer from "multer";
+import cors from "cors";
+import fetch from "node-fetch";
+import fs from "fs";
 
 const app = express();
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ dest: "uploads/" });
 const PORT = process.env.PORT || 3000;
-
-const ASSEMBLY_API_KEY = process.env.ASSEMBLY_API_KEY;
+const API_KEY = "8055383b3c774f77b3fc2a8c48f826f8";
 
 app.use(cors());
 
-app.post('/upload', upload.single('audio'), async (req, res) => {
-    try {
-        if (!req.file) {
-        console.error("No audio file uploaded");
-        return res.status(400).json({ error: "No file uploaded" });
-        }
-
-        const audioData = fs.createReadStream(req.file.path);
-        const uploadResponse = await axios({
-        method: 'post',
-        url: 'https://api.assemblyai.com/v2/upload',
-        headers: { authorization: ASSEMBLY_API_KEY },
-        data: audioData
-        });
-
-        const transcriptResponse = await axios.post(
-            'https://api.assemblyai.com/v2/transcript',
-            {
-              audio_url: uploadResponse.data.upload_url,
-              language_code: "vi" // ⬅️ Force Vietnamese
-            },
-            {
-              headers: { authorization: ASSEMBLY_API_KEY }
-            }
-          );
-          
-        console.log("Transcript request sent:", transcriptResponse.data);
-
-        res.json({ id: transcriptResponse.data.id });
-    } catch (error) {
-        console.error("Upload error:", error.message);
-        res.status(500).json({ error: error.message });
-    }
-});
-  
-app.get('/result/:id', async (req, res) => {
+app.post("/upload", upload.single("file"), async (req, res) => {
   try {
-    const { id } = req.params;
-    const result = await axios.get(
-      `https://api.assemblyai.com/v2/transcript/${id}`,
-      {
-        headers: { authorization: ASSEMBLY_API_KEY }
-      }
-    );
-    res.json(result.data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    const audioPath = req.file.path;
+
+    // Upload file to AssemblyAI
+    const audioData = fs.readFileSync(audioPath);
+    const uploadRes = await fetch("https://api.assemblyai.com/v2/upload", {
+      method: "POST",
+      headers: {
+        "authorization": API_KEY,
+        "transfer-encoding": "chunked"
+      },
+      body: audioData,
+    });
+
+    const uploadData = await uploadRes.json();
+    const audio_url = uploadData.upload_url;
+
+    // Transcribe with language detection (Vietnamese)
+    const transcriptRes = await fetch("https://api.assemblyai.com/v2/transcript", {
+      method: "POST",
+      headers: {
+        "authorization": API_KEY,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        audio_url,
+        language_code: "vi", // Vietnamese
+        word_boost: ["xin chào", "học sinh", "bài giảng"], // example
+        boost_param: "high",
+        punctuate: true,
+        format_text: true
+      })
+    });
+
+    const transcriptData = await transcriptRes.json();
+
+    // Polling loop
+    let transcript;
+    while (true) {
+      const pollingRes = await fetch(`https://api.assemblyai.com/v2/transcript/${transcriptData.id}`, {
+        headers: { authorization: API_KEY }
+      });
+      transcript = await pollingRes.json();
+
+      if (transcript.status === "completed") break;
+      if (transcript.status === "error") throw new Error("Transcription failed.");
+
+      await new Promise(r => setTimeout(r, 2500)); // wait 2.5s
+    }
+
+    fs.unlinkSync(audioPath); // delete temp file
+    res.json({ text: transcript.text });
+  } catch (err) {
+    console.error("Upload error:", err);
+    res.status(500).json({ error: "Transcription failed." });
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`✅ Server running on http://localhost:${PORT}`));

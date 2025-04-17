@@ -39,8 +39,6 @@ app.post("/upload", upload.single("file"), async (req, res) => {
       body: JSON.stringify({
         audio_url,
         language_code: "vi", // Vietnamese
-        word_boost: ["xin chào", "học sinh", "bài giảng"], // example
-        boost_param: "high",
         punctuate: true,
         format_text: true
       })

@@ -1,0 +1,34 @@
+<script>
+  const BACKEND_URL = "https://your-vercel-deployment-url.vercel.app/api/upload"; // Thay bằng URL của bạn
+
+  async function uploadFile() {
+    const fileInput = document.getElementById("audioFile");
+    if (!fileInput.files.length) {
+      alert("Please select an audio file.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+
+    document.getElementById("transcriptText").innerText = "Uploading and transcribing...";
+
+    try {
+      const response = await fetch(`${BACKEND_URL}`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (data.text) {
+        document.getElementById("transcriptText").innerText = data.text;
+      } else {
+        document.getElementById("transcriptText").innerText = "No transcription result.";
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      document.getElementById("transcriptText").innerText = "Transcription failed.";
+    }
+  }
+</script>

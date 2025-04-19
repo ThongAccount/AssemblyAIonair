@@ -15,7 +15,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
   try {
     const audioPath = req.file.path;
 
-    // STEP 1: Upload audio to AssemblyAI
+    // Step 1: Upload to AssemblyAI
     const audioData = fs.readFileSync(audioPath);
     const uploadRes = await fetch("https://api.assemblyai.com/v2/upload", {
       method: "POST",
@@ -27,9 +27,11 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     });
 
     const uploadData = await uploadRes.json();
+    console.log("📤 Uploaded audio:", uploadData);
     const audio_url = uploadData.upload_url;
+    if (!audio_url) throw new Error("Upload failed or no URL returned.");
 
-    // STEP 2: Detect language
+    // Step 2: Language Detection
     const detectRes = await fetch("https://api.assemblyai.com/v2/language-detection", {
       method: "POST",
       headers: {
@@ -40,10 +42,10 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     });
 
     const detectData = await detectRes.json();
+    console.log("🔍 Language detection response:", detectData);
     const langCode = detectData.language_code || "en";
-    console.log(`🔤 Detected language: ${langCode}`);
 
-    // STEP 3: Transcribe using detected language
+    // Step 3: Transcribe
     const transcriptRes = await fetch("https://api.assemblyai.com/v2/transcript", {
       method: "POST",
       headers: {
@@ -59,8 +61,10 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     });
 
     const transcriptData = await transcriptRes.json();
+    console.log("📝 Transcript init response:", transcriptData);
+    if (!transcriptData.id) throw new Error("Transcription creation failed.");
 
-    // Polling until done
+    // Polling loop
     let transcript;
     while (true) {
       const pollingRes = await fetch(`https://api.assemblyai.com/v2/transcript/${transcriptData.id}`, {
@@ -69,20 +73,17 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 
       transcript = await pollingRes.json();
       if (transcript.status === "completed") break;
-      if (transcript.status === "error") throw new Error("Transcription failed.");
+      if (transcript.status === "error") throw new Error("Transcription failed: " + transcript.error);
 
       await new Promise(r => setTimeout(r, 2500));
     }
 
-    fs.unlinkSync(audioPath); // cleanup
-    res.json({
-      text: transcript.text,
-      language_code: langCode
-    });
+    fs.unlinkSync(audioPath); // delete temp file
+    res.json({ text: transcript.text, language_code: langCode });
 
   } catch (err) {
-    console.error("Upload error:", err);
-    res.status(500).json({ error: "Transcription failed." });
+    console.error("❌ Upload error:", err);
+    res.status(500).json({ error: err.message || "Transcription failed." });
   }
 });
 

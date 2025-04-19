@@ -31,21 +31,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     const audio_url = uploadData.upload_url;
     if (!audio_url) throw new Error("Upload failed or no URL returned.");
 
-    // Step 2: Language Detection
-    const detectRes = await fetch("https://api.assemblyai.com/v2/language-detection", {
-      method: "POST",
-      headers: {
-        "authorization": API_KEY,
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({ audio_url })
-    });
-
-    const detectData = await detectRes.json();
-    console.log("🔍 Language detection response:", detectData);
-    const langCode = detectData.language_code || "en";
-
-    // Step 3: Transcribe
+    // Step 2: Transcribe
     const transcriptRes = await fetch("https://api.assemblyai.com/v2/transcript", {
       method: "POST",
       headers: {
@@ -54,12 +40,12 @@ app.post("/upload", upload.single("file"), async (req, res) => {
       },
       body: JSON.stringify({
         audio_url,
-        language_code: langCode,
+        auto_detect: true,
         punctuate: true,
         format_text: true
       })
     });
-
+        
     const transcriptData = await transcriptRes.json();
     console.log("📝 Transcript init response:", transcriptData);
     if (!transcriptData.id) throw new Error("Transcription creation failed.");

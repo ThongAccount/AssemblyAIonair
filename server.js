@@ -41,7 +41,8 @@ app.post("/upload", upload.single("file"), async (req, res) => {
       body: JSON.stringify({
         audio_url,
         punctuate: true,
-        format_text: true
+        format_text: true,
+        language_detection: true // ✅ enable auto language detection
       })
     });
             

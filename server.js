@@ -40,12 +40,11 @@ app.post("/upload", upload.single("file"), async (req, res) => {
       },
       body: JSON.stringify({
         audio_url,
-        auto_detect: true,
         punctuate: true,
         format_text: true
       })
     });
-        
+            
     const transcriptData = await transcriptRes.json();
     console.log("📝 Transcript init response:", transcriptData);
     if (!transcriptData.id) throw new Error("Transcription creation failed.");

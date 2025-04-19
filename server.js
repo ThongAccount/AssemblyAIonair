@@ -64,7 +64,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     }
 
     fs.unlinkSync(audioPath); // delete temp file
-    res.json({ text: transcript.text, language_code: langCode });
+    res.json({ text: transcript.text, language_code: transcript.language_code });
 
   } catch (err) {
     console.error("❌ Upload error:", err);
